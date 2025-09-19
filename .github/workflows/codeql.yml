@@ -69,7 +69,7 @@ jobs:
     - name: CodeQL and Dependabot Report Action
       uses: rsdmike/github-security-report-action@v3.0.4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}   # ✅ use built-in token
+        token: ${{ secrets.SECURITY_TOKEN }}   # ✅ use built-in token
         sarifReportDir: sarif-results        # folder from the analyze step
         outputDir: reports                   # where to save the PDF/HTML reports
         repository: ${{ github.repository }} # dynamically use repo name
