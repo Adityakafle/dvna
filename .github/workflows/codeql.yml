@@ -1,3 +1,14 @@
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
 name: "CodeQL Advanced"
 
 on:
@@ -84,6 +95,67 @@ jobs:
         exit 1
 
     - name: Perform CodeQL Analysis
+      id: codeql-analysis
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:${{matrix.language}}"
+        output: "sarif-results" # Ensure the output is saved as a SARIF artifact
+
+  # This new job will run after the 'analyze' job
+  report-sarif:
+    name: "Generate Security Report"
+    runs-on: ubuntu-latest
+    needs: analyze # Make sure this job only starts after 'analyze' is complete
+    permissions:
+      contents: write # This is required to push the PDF report to the repository
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download all SARIF artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name.startsWith('sarif-results')) {
+                console.log(`Downloading artifact: ${artifact.name}`);
+                const download = await github.rest.actions.downloadArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                  archive_format: 'zip',
+                });
+                const fs = require('fs');
+                const path = require('path');
+                const AdmZip = require('adm-zip');
+                const zip = new AdmZip(Buffer.from(download.data));
+                zip.extractAllTo('sarif-downloads', true);
+              }
+            }
+
+      - name: Create PDF Report from SARIF
+        id: create-report
+        uses: rsdmike/github-security-report-action@v3.0.4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: './sarif-downloads' # The directory where downloaded SARIF files are located
+          title: 'CodeQL Security Report'
+          template: 'dependabot,codeql' # You can customize the template to include both CodeQL and Dependabot findings
+
+      - name: Upload PDF to repository
+        if: success()
+        run: |
+          mkdir -p reports
+          mv ${{ steps.create-report.outputs.report_path }} reports/security_report.pdf
+          
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add reports/security_report.pdf
+          git commit -m "feat: Add CodeQL security report PDF" || true
+          git push
