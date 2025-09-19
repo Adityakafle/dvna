@@ -1,3 +1,14 @@
+name: "CodeQL HTML Report"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -11,6 +22,8 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
+      with:
+        output: codeql-results.sarif  # <-- export SARIF to this file
 
     - name: Install SARIF Converter
       run: |
@@ -18,7 +31,7 @@ jobs:
         chmod +x sarif-converter
 
     - name: Convert SARIF to HTML
-      run: ./sarif-converter --type html results.sarif codeql-report.html
+      run: ./sarif-converter --type html codeql-results.sarif codeql-report.html
 
     - name: Upload HTML report
       uses: actions/upload-artifact@v3
