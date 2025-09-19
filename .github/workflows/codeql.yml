@@ -26,10 +26,6 @@ jobs:
           - language: javascript-typescript
             build-mode: none
 
-    env:
-      # You can replace this with your personal access token (not recommended for public repos!)
-      SECURITY_TOKEN: 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
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -63,7 +59,7 @@ jobs:
     - name: CodeQL and Dependabot Report Action
       uses: rsdmike/github-security-report-action@v3.0.4
       with:
-        token: ${{ env.SECURITY_TOKEN }}
+        token: ${{ secrets.SECURITY_TOKEN }}
         sarifReportDir: results
         outputDir: reports
         template: summary
